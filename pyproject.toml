@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "student-distillation-data-selection"
+version = "0.1.0"
+description = "Student-centric selection of teacher-generated answers for distillation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [
+  {name = "SCAS Authors"},
+]
+keywords = [
+  "data-selection",
+  "distillation",
+  "language-models",
+  "supervised-fine-tuning",
+]
+dependencies = [
+  "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+model = [
+  "accelerate>=0.26",
+  "torch>=2.1",
+  "transformers>=4.40",
+]
+runtime = [
+  "openai>=1.0",
+  "requests>=2.31",
+]
+train = [
+  "deepspeed>=0.10.0",
+]
+full = [
+  "accelerate>=0.26",
+  "deepspeed>=0.10.0",
+  "openai>=1.0",
+  "requests>=2.31",
+  "torch>=2.1",
+  "transformers>=4.40",
+]
+dev = []
+
+[project.scripts]
+scas-score-demo = "scas.scoring.score_demo_candidates:main"
+scas-score = "scas.scoring.model_candidates:main"
+scas-group = "scas.selection.group_by_score:main"
+scas-select-min = "scas.selection.select_min_score:main"
+scas-train-llamafactory = "scas.training.llamafactory:main"
+scas-generate = "scas.generation.generate_responses:main"
+scas-eval-math = "scas.evaluation.judge_math:main"
+scas-eval-teachers = "scas.evaluation.evaluate_teacher_outputs:main"
+scas-filter-correct = "scas.evaluation.filter_correct:main"
+scas-prepare-ifeval = "scas.evaluation.prepare_ifeval_responses:main"
+
+[tool.setuptools.packages.find]
+include = ["scas*"]

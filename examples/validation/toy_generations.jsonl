@@ -1,0 +1,3 @@
+{"id": "math-1", "instruction": "If Mia has 4 apples and buys 3 more, how many apples does she have?", "model_output": "Mia has 7 apples.", "reference_answer": "7"}
+{"id": "math-2", "instruction": "A box has 5 red pens and 6 blue pens. How many pens are in the box?", "model_output": "There are 11 pens in the box.", "reference_answer": "11"}
+{"id": "math-3", "instruction": "Sam reads 8 pages each day for 3 days. How many pages does Sam read?", "model_output": "Sam reads 24 pages.", "reference_answer": "24"}
