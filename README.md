@@ -8,7 +8,6 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2605.26872-b31b1b.svg)](https://arxiv.org/abs/2605.26872)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Package](https://img.shields.io/badge/package-pyproject.toml-5B7FFF.svg)](pyproject.toml)
 
 </div>
@@ -21,16 +20,6 @@ The paper studies teacher-generated supervision for LLM distillation and shows
 that the strongest teacher by benchmark accuracy does not necessarily provide
 the best training answer for a particular student model.
 
-Student-Centric Answer Sampling (SCAS) starts from a pool of verified correct
-teacher answers for the same prompt. Instead of selecting by teacher identity or
-teacher-level accuracy, SCAS scores each candidate under the current student
-model with a forward-only proxy for student-centric learning cost. Lower-cost
-answers are then selected or sampled to construct supervised fine-tuning data.
-
-This release focuses on the method-side open-source pipeline: candidate
-scoring, answer selection, SFT data formatting, and training/evaluation
-interfaces. It does not include the full paper benchmark suite, teacher
-generation outputs, model checkpoints, or large experiment artifacts.
 
 <div align="center">
   <img src="assets/scas_workflow.jpg" alt="SCAS workflow" width="88%" />
@@ -223,32 +212,7 @@ student_distillation_data_selection/
 ├── assets/                         # Workflow figure
 └── tests/                          # Public smoke tests
 ```
-
-## Documentation
-
-- [Data format](docs/data_format.md)
-- [Training and evaluation](docs/training_and_evaluation.md)
-- [Example fixtures](examples/README.md)
-
-## Checks
-
-```bash
-make check
-```
-
-## License
-
-This project is released under the [MIT License](LICENSE).
-
 ## Citation
-
-[![arXiv](https://img.shields.io/badge/arXiv-2605.26872-b31b1b.svg)](https://arxiv.org/abs/2605.26872)
-[![PDF](https://img.shields.io/badge/PDF-arXiv.org-b31b1b.svg)](https://arxiv.org/pdf/2605.26872)
-
-If you use this repository, please cite:
-
-- [The Strongest Teacher Is Not Always the Best Teacher: Student-Centric Answer Selection](https://arxiv.org/abs/2605.26872)
-- [Google Scholar citation](https://scholar.google.com/citations?view_op=view_citation&hl=en&user=0d_Xx6QAAAAJ&citation_for_view=0d_Xx6QAAAAJ:Tyk-4Ss8FVUC)
 
 ```bibtex
 @article{hu2026strongest,
