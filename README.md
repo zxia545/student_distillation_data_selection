@@ -1,49 +1,45 @@
-<h1 align="center">Student Distillation Data Selection</h1>
+<h1 align="center">Student-Centric Answer Sampling (SCAS)</h1>
 
 <p align="center">
-  <strong>Student-centric teacher answer selection for supervised distillation</strong>
+  <strong>Open-source implementation for student-centric answer selection in LLM distillation</strong>
 </p>
 
 <div align="center">
 
+[![arXiv](https://img.shields.io/badge/arXiv-2605.26872-b31b1b.svg)](https://arxiv.org/abs/2605.26872)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Package](https://img.shields.io/badge/package-pyproject.toml-5B7FFF.svg)](pyproject.toml)
-[![Method](https://img.shields.io/badge/method-SCAS-b5212f.svg)](#overview)
 
 </div>
 
 ## Overview
 
-This repository provides a clean public implementation of Student-Centric
-Answer Selection (SCAS). Given several teacher-generated answers for the same
-prompt, SCAS scores each candidate with respect to the current student model,
-selects lower-cost supervision, and exports data that can be used directly for
-supervised fine-tuning.
+This repository accompanies the paper
+[The Strongest Teacher Is Not Always the Best Teacher: Student-Centric Answer Selection](https://arxiv.org/abs/2605.26872).
+The paper studies teacher-generated supervision for LLM distillation and shows
+that the strongest teacher by benchmark accuracy does not necessarily provide
+the best training answer for a particular student model.
 
-The release includes the method pipeline around data selection, training, and
-evaluation, while leaving benchmark-specific large assets and generated
-artifacts outside the repository.
+Student-Centric Answer Sampling (SCAS) starts from a pool of verified correct
+teacher answers for the same prompt. Instead of selecting by teacher identity or
+teacher-level accuracy, SCAS scores each candidate under the current student
+model with a forward-only proxy for student-centric learning cost. Lower-cost
+answers are then selected or sampled to construct supervised fine-tuning data.
+
+This release focuses on the method-side open-source pipeline: candidate
+scoring, answer selection, SFT data formatting, and training/evaluation
+interfaces. It does not include the full paper benchmark suite, teacher
+generation outputs, model checkpoints, or large experiment artifacts.
 
 <div align="center">
   <img src="assets/scas_workflow.jpg" alt="SCAS workflow" width="88%" />
 </div>
 
-## Key Features
-
-| Module | Entry Point | Purpose |
-|---|---|---|
-| Candidate scoring | [`scas.scoring.model_candidates`](scas/scoring/model_candidates.py) | Score teacher answers with the current student model. |
-| Demo scoring | [`scas.scoring.score_demo_candidates`](scas/scoring/score_demo_candidates.py) | Exercise the pipeline without GPU or model dependencies. |
-| Data selection | [`scas.selection.group_by_score`](scas/selection/group_by_score.py) | Rank candidates and export selected SFT data. |
-| SFT training | [`scas.training.llamafactory`](scas/training/llamafactory.py) | Build or run LLaMA-Factory/DeepSpeed SFT commands. |
-| Response generation | [`scas.generation.generate_responses`](scas/generation/generate_responses.py) | Generate validation responses through an OpenAI-compatible endpoint or local vLLM. |
-| Math evaluation | [`scas.evaluation.judge_math`](scas/evaluation/judge_math.py) | Judge generated answers with rules or an LLM judge. |
-
 ## Installation
 
-Install the base package for JSONL processing, demo scoring, grouping,
-training dry-runs, and rule-based evaluation:
+Install the base package for JSONL processing, candidate selection, command
+construction, and rule-based evaluation:
 
 ```bash
 python -m venv .venv
@@ -51,7 +47,7 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-Install optional dependencies as needed:
+Install optional dependencies for model scoring and runtime integrations:
 
 ```bash
 # Student-model SCAS scoring
@@ -64,59 +60,13 @@ pip install -e ".[runtime]"
 pip install -e ".[full]"
 ```
 
-LLaMA-Factory itself is not vendored. Pass the local paths to
+LLaMA-Factory is not vendored. Pass local paths through
 `LLAMAFACTORY_TRAIN` and `DEEPSPEED_CONFIG` when launching SFT.
 
-## Quick Start
+## Candidate Data
 
-Run the small public demo:
-
-```bash
-bash examples/run_demo.sh
-```
-
-This scores three toy teacher files, groups candidates, and writes selected
-SFT-ready data under:
-
-```text
-outputs/demo/
-├── scored/
-│   ├── teacher_brief_scas_scores.jsonl
-│   ├── teacher_direct_scas_scores.jsonl
-│   └── teacher_verbose_scas_scores.jsonl
-└── grouped/scas_score/3_groups/
-    ├── group_1.jsonl
-    ├── group_2.jsonl
-    ├── group_3.jsonl
-    ├── selected_group_1.jsonl
-    ├── dataset_info.json
-    └── manifest.json
-```
-
-Run a no-GPU training dry-run on the selected demo data:
-
-```bash
-DATASET_DIR=outputs/demo/grouped/scas_score/3_groups \
-DATASET_NAME=selected_group_1 \
-MODEL_NAME_OR_PATH=/path/to/base-student \
-OUTPUT_DIR=outputs/demo/train_dry_run \
-DRY_RUN=1 \
-bash scripts/train_sft.sh
-```
-
-Run rule-based evaluation on the toy generated answers:
-
-```bash
-MODEL_OUTPUT_JSONL=examples/validation/toy_generations.jsonl \
-EVAL_OUTPUT_JSONL=outputs/demo/eval_math.jsonl \
-bash scripts/evaluate_math.sh
-```
-
-## Full Workflow
-
-### Step 1: Prepare Candidate Answers
-
-Place one JSONL file per teacher in a candidate directory:
+SCAS expects one JSONL file per teacher. Each prompt id should be shared across
+teacher files so candidates can be ranked against one another:
 
 ```text
 candidate_answers/
@@ -125,16 +75,24 @@ candidate_answers/
 └── teacher_c_student_train.jsonl
 ```
 
-Each row should include an id shared across teachers, a prompt, and a candidate
-answer:
+Each row must contain a prompt id, an instruction, and a candidate answer:
 
 ```json
 {"id": "item-1", "instruction": "Question text", "teacher_output": "Answer text"}
 ```
 
-### Step 2: Score Teacher Candidates
+Candidate answers should be verified before SCAS ranking. For tasks with
+reference answers, this repository includes lightweight filtering utilities;
+for other tasks, use a task-appropriate verifier and pass only valid candidate
+answers to the scorer.
 
-Use the real SCAS scorer with the current student model:
+See [docs/data_format.md](docs/data_format.md) for the full schema.
+
+## SCAS Workflow
+
+### 1. Score Candidate Answers
+
+Run the model-based scorer with the current student checkpoint:
 
 ```bash
 python -m scas.scoring.model_candidates \
@@ -146,11 +104,21 @@ python -m scas.scoring.model_candidates \
 
 By default, the scorer uses the final `model.layers.*.mlp.up_proj` layer for
 Llama/Qwen-style decoder models. For other architectures, pass
-`--target-layer`.
+`--target-layer` explicitly.
 
-### Step 3: Select Supervision
+The scorer writes one file per teacher:
 
-Group candidate answers by ascending score and select the lowest-cost group:
+```text
+outputs/scored/
+├── teacher_a_scas_scores.jsonl
+├── teacher_b_scas_scores.jsonl
+├── teacher_c_scas_scores.jsonl
+└── manifest.json
+```
+
+### 2. Select Supervision
+
+Group candidates by ascending score and export the selected group:
 
 ```bash
 python -m scas.selection.group_by_score \
@@ -161,13 +129,22 @@ python -m scas.selection.group_by_score \
   --selected-group 1
 ```
 
-The selected file is:
+`group_1` is the lowest-cost group. The selected SFT file is:
 
 ```text
 outputs/grouped/scas_score/5_groups/selected_group_1.jsonl
 ```
 
-### Step 4: Train the Student
+For deterministic minimum-score selection instead of group sampling:
+
+```bash
+python -m scas.selection.select_min_score \
+  --input-dir outputs/scored \
+  --output-dir outputs/min_selected \
+  --score-key scas_score
+```
+
+### 3. Train the Student
 
 Launch SFT through LLaMA-Factory:
 
@@ -182,11 +159,11 @@ NUM_GPUS=4 \
 bash scripts/train_sft.sh
 ```
 
-Set `DRY_RUN=1` to print the exact DeepSpeed command without starting training.
+Set `DRY_RUN=1` to print the DeepSpeed command without starting training.
 
-### Step 5: Generate and Evaluate
+### 4. Generate and Evaluate
 
-Generate validation responses with an existing OpenAI-compatible endpoint:
+Generate validation responses with an OpenAI-compatible endpoint:
 
 ```bash
 INPUT_JSONL=data/validation.jsonl \
@@ -196,7 +173,7 @@ MODEL_NAME=student-scas \
 bash scripts/generate_responses.sh
 ```
 
-Evaluate generated math answers:
+Evaluate generated math-style answers:
 
 ```bash
 MODEL_OUTPUT_JSONL=outputs/eval/generated.jsonl \
@@ -207,20 +184,26 @@ bash scripts/evaluate_math.sh
 ```
 
 For local vLLM serving, set `MODEL_PATH=/path/to/checkpoint` and
-`START_VLLM=1` in `scripts/generate_responses.sh`. For LLM-based judging, set
-`EVAL_METHOD=llm`, `JUDGE_API_BASE`, and `JUDGE_MODEL`.
+`START_VLLM=1`. For LLM-based judging, set `EVAL_METHOD=llm`,
+`JUDGE_API_BASE`, and `JUDGE_MODEL`.
 
-## Output Structure
+## Outputs
 
 ```text
 outputs/
 ├── scored/                         # One *_scas_scores.jsonl file per teacher
-├── grouped/scas_score/5_groups/    # SFT-ready selected data
+├── grouped/scas_score/5_groups/    # Grouped and selected SFT data
 ├── train/student_scas/             # Fine-tuned student checkpoint
 └── eval/
     ├── generated.jsonl             # Student generations
-    └── judged.jsonl                # Per-row correctness labels
+    └── judged.jsonl                # Per-row evaluation labels
 ```
+
+## Examples
+
+The [examples](examples/) directory contains small synthetic JSONL fixtures
+that document file contracts and support smoke tests. They are not benchmark
+data and should not be interpreted as evidence for method performance.
 
 ## Project Structure
 
@@ -228,16 +211,16 @@ outputs/
 student_distillation_data_selection/
 ├── scas/
 │   ├── scoring/                    # SCAS metric and candidate scoring
-│   ├── selection/                  # Group and min-score selection
+│   ├── selection/                  # Group and minimum-score selection
 │   ├── training/                   # LLaMA-Factory command builder
 │   ├── generation/                 # OpenAI-compatible generation
-│   ├── evaluation/                 # Rule/LLM judging and filtering
+│   ├── evaluation/                 # Teacher filtering and answer judging
 │   ├── runtime/                    # vLLM server helpers
 │   └── io.py                       # JSONL utilities
-├── scripts/                        # Public workflow entry points
-├── examples/                       # Tiny candidate and evaluation fixtures
+├── scripts/                        # Workflow entry points
+├── examples/                       # Small JSONL fixtures
 ├── docs/                           # Schemas and train/eval guide
-├── assets/                         # Workflow image
+├── assets/                         # Workflow figure
 └── tests/                          # Public smoke tests
 ```
 
@@ -245,7 +228,7 @@ student_distillation_data_selection/
 
 - [Data format](docs/data_format.md)
 - [Training and evaluation](docs/training_and_evaluation.md)
-- [Example data](examples/README.md)
+- [Example fixtures](examples/README.md)
 
 ## Checks
 
@@ -256,3 +239,22 @@ make check
 ## License
 
 This project is released under the [MIT License](LICENSE).
+
+## Citation
+
+[![arXiv](https://img.shields.io/badge/arXiv-2605.26872-b31b1b.svg)](https://arxiv.org/abs/2605.26872)
+[![PDF](https://img.shields.io/badge/PDF-arXiv.org-b31b1b.svg)](https://arxiv.org/pdf/2605.26872)
+
+If you use this repository, please cite:
+
+- [The Strongest Teacher Is Not Always the Best Teacher: Student-Centric Answer Selection](https://arxiv.org/abs/2605.26872)
+- [Google Scholar citation](https://scholar.google.com/citations?view_op=view_citation&hl=en&user=0d_Xx6QAAAAJ&citation_for_view=0d_Xx6QAAAAJ:Tyk-4Ss8FVUC)
+
+```bibtex
+@article{hu2026strongest,
+  title={The Strongest Teacher Is Not Always the Best Teacher: Student-Centric Answer Selection},
+  author={Hu, Zhengyu and Xiao, Zheyuan and Song, Linxin and Jiang, Fengqing and Li, Yutai and Chen, Zhengyu and Xiong, Zhihan and Liu, Yue and Lin, Junhao and Su, Yao and Hu, Lijie and Ding, Kaize and Teng, Xiao and Poovendran, Radha},
+  journal={arXiv preprint arXiv:2605.26872},
+  year={2026}
+}
+```
