@@ -77,6 +77,99 @@ answers to the scorer.
 
 See [docs/data_format.md](docs/data_format.md) for the full schema.
 
+## Released Teacher Data
+
+We release the common-correct top-9 teacher-response data used for controlled
+teacher comparison and SCAS candidate selection on Hugging Face:
+
+```text
+zxia545/scas-top9-common-correct-teacher-responses
+```
+
+Download the JSONL files with:
+
+```bash
+hf download zxia545/scas-top9-common-correct-teacher-responses \
+  --repo-type dataset \
+  --local-dir data/scas_top9_common_correct
+```
+
+The release is organized as one JSONL file per teacher under each source
+dataset:
+
+```text
+data/scas_top9_common_correct/
+└── data/
+    ├── deepscaler/
+    │   ├── qwen3-32b.jsonl
+    │   └── ...
+    └── hendrycks_math/
+        ├── qwen3-32b.jsonl
+        └── ...
+```
+
+These files can be used in two ways.
+
+**Fixed-teacher distillation.** To train directly on one teacher, convert that
+teacher's `teacher_output` field to the SFT `output` field and write a
+LLaMA-Factory `dataset_info.json` file:
+
+```bash
+python - <<'PY'
+import json
+from pathlib import Path
+
+source = Path("data/scas_top9_common_correct/data/deepscaler/qwen3-32b.jsonl")
+out_dir = Path("data/fixed_teacher/deepscaler_qwen3_32b")
+out_dir.mkdir(parents=True, exist_ok=True)
+
+with source.open("r", encoding="utf-8") as src, (out_dir / "train.jsonl").open(
+    "w", encoding="utf-8"
+) as dst:
+    for line in src:
+        row = json.loads(line)
+        dst.write(json.dumps({
+            "system": row.get("system", ""),
+            "instruction": row["instruction"],
+            "output": row["teacher_output"],
+            "teacher_name": row["teacher_name"],
+            "source_dataset": row["source_dataset"],
+            "id": row["id"],
+        }, ensure_ascii=False) + "\n")
+
+(out_dir / "dataset_info.json").write_text(json.dumps({
+    "fixed_teacher": {
+        "file_name": "train.jsonl",
+        "columns": {"system": "system", "prompt": "instruction", "response": "output"},
+    }
+}, indent=2) + "\n", encoding="utf-8")
+PY
+```
+
+Then launch SFT with `DATASET_DIR=data/fixed_teacher/deepscaler_qwen3_32b` and
+`DATASET_NAME=fixed_teacher`.
+
+**SCAS-selected distillation.** To use the paper's student-centric selection
+pipeline, pass one source-dataset directory as the candidate directory:
+
+```bash
+python -m scas.scoring.model_candidates \
+  --student-model /path/to/student-checkpoint \
+  --candidate-dir data/scas_top9_common_correct/data/deepscaler \
+  --output-dir outputs/scored/deepscaler \
+  --lambda-scas 0.5
+
+python -m scas.selection.group_by_score \
+  --input-dir outputs/scored/deepscaler \
+  --output-dir outputs/grouped/deepscaler \
+  --score-key scas_score \
+  --num-groups 5 \
+  --selected-group 1
+```
+
+The selected training file can then be used with `scripts/train_sft.sh` as
+described below.
+
 ## SCAS Workflow
 
 ### 1. Score Candidate Answers
