@@ -220,7 +220,10 @@ student_distillation_data_selection/
 │   ├── runtime/                    # vLLM server helpers
 │   └── io.py                       # JSONL utilities
 ├── scripts/                        # Workflow entry points
-├── examples/                       # Synthetic fixtures and dataset workflows
+├── examples/
+│   ├── candidates/                 # Synthetic teacher-answer fixtures
+│   ├── validation/                 # Toy generated-answer examples
+│   └── verified_teacher_pool/      # Released-data training workflows
 ├── docs/                           # Schemas, train/eval, and dataset guides
 ├── assets/                         # Workflow figure
 └── tests/                          # Public smoke tests
