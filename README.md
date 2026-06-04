@@ -231,6 +231,8 @@ student_distillation_data_selection/
 
 ## Citation
 
+If you use SCAS in your research, please cite:
+
 ```bibtex
 @article{hu2026strongest,
   title={The Strongest Teacher Is Not Always the Best Teacher: Student-Centric Answer Selection},
