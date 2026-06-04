@@ -20,7 +20,6 @@ The paper studies teacher-generated supervision for LLM distillation and shows
 that the strongest teacher by benchmark accuracy does not necessarily provide
 the best training answer for a particular student model.
 
-
 <div align="center">
   <img src="assets/scas_workflow.jpg" alt="SCAS workflow" width="88%" />
 </div>
@@ -201,23 +200,12 @@ For local vLLM serving, set `MODEL_PATH=/path/to/checkpoint` and
 `START_VLLM=1`. For LLM-based judging, set `EVAL_METHOD=llm`,
 `JUDGE_API_BASE`, and `JUDGE_MODEL`.
 
-## Outputs
-
-```text
-outputs/
-├── scored/                         # One *_scas_scores.jsonl file per teacher
-├── grouped/scas_score/5_groups/    # Grouped and selected SFT data
-├── train/student_scas/             # Fine-tuned student checkpoint
-└── eval/
-    ├── generated.jsonl             # Student generations
-    └── judged.jsonl                # Per-row evaluation labels
-```
-
 ## Examples
 
-The [examples](examples/) directory contains small synthetic JSONL fixtures
-that document file contracts and support smoke tests. They are not benchmark
-data and should not be interpreted as evidence for method performance.
+The [examples](examples/) directory contains small synthetic JSONL fixtures for
+smoke tests and runnable workflows for the verified teacher-answer pool. The
+synthetic fixtures are only for file-contract checks and should not be
+interpreted as evidence for method performance.
 
 ## Project Structure
 
@@ -232,11 +220,12 @@ student_distillation_data_selection/
 │   ├── runtime/                    # vLLM server helpers
 │   └── io.py                       # JSONL utilities
 ├── scripts/                        # Workflow entry points
-├── examples/                       # Small JSONL fixtures
-├── docs/                           # Schemas and train/eval guide
+├── examples/                       # Synthetic fixtures and dataset workflows
+├── docs/                           # Schemas, train/eval, and dataset guides
 ├── assets/                         # Workflow figure
 └── tests/                          # Public smoke tests
 ```
+
 ## Citation
 
 ```bibtex
