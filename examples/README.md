@@ -6,6 +6,10 @@ public smoke test. It is intentionally synthetic and only checks file contracts.
 `examples/validation/toy_generations.jsonl` contains generated-answer examples
 for the rule-based math evaluator.
 
+`examples/verified_teacher_pool/` contains scripts for using the released
+verified teacher-answer pool either as fixed-teacher SFT data or as SCAS
+candidate answers before training.
+
 Run:
 
 ```bash

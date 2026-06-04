@@ -77,98 +77,30 @@ answers to the scorer.
 
 See [docs/data_format.md](docs/data_format.md) for the full schema.
 
-## Released Teacher Data
+## Verified Teacher Answer Pool
 
-We release the common-correct top-9 teacher-response data used for controlled
-teacher comparison and SCAS candidate selection on Hugging Face:
+We also provide the SCAS verified teacher-answer pool on Hugging Face:
 
 ```text
-zxia545/scas-top9-common-correct-teacher-responses
+Student-Centric-Answer-Sampling/scas_verified_teacher_pool
 ```
 
-Download the JSONL files with:
+The release contains aligned, correctness-verified teacher-generated solutions
+for Hendrycks MATH and DeepScaleR. It can be used either as fixed-teacher
+distillation data or as the candidate-answer pool for SCAS selection.
+
+Download:
 
 ```bash
-hf download zxia545/scas-top9-common-correct-teacher-responses \
+hf download Student-Centric-Answer-Sampling/scas_verified_teacher_pool \
   --repo-type dataset \
-  --local-dir data/scas_top9_common_correct
+  --local-dir data/scas_verified_teacher_pool
 ```
 
-The release is organized as one JSONL file per teacher under each source
-dataset:
-
-```text
-data/scas_top9_common_correct/
-└── data/
-    ├── deepscaler/
-    │   ├── qwen3-32b.jsonl
-    │   └── ...
-    └── hendrycks_math/
-        ├── qwen3-32b.jsonl
-        └── ...
-```
-
-These files can be used in two ways.
-
-**Fixed-teacher distillation.** To train directly on one teacher, convert that
-teacher's `teacher_output` field to the SFT `output` field and write a
-LLaMA-Factory `dataset_info.json` file:
-
-```bash
-python - <<'PY'
-import json
-from pathlib import Path
-
-source = Path("data/scas_top9_common_correct/data/deepscaler/qwen3-32b.jsonl")
-out_dir = Path("data/fixed_teacher/deepscaler_qwen3_32b")
-out_dir.mkdir(parents=True, exist_ok=True)
-
-with source.open("r", encoding="utf-8") as src, (out_dir / "train.jsonl").open(
-    "w", encoding="utf-8"
-) as dst:
-    for line in src:
-        row = json.loads(line)
-        dst.write(json.dumps({
-            "system": row.get("system", ""),
-            "instruction": row["instruction"],
-            "output": row["teacher_output"],
-            "teacher_name": row["teacher_name"],
-            "source_dataset": row["source_dataset"],
-            "id": row["id"],
-        }, ensure_ascii=False) + "\n")
-
-(out_dir / "dataset_info.json").write_text(json.dumps({
-    "fixed_teacher": {
-        "file_name": "train.jsonl",
-        "columns": {"system": "system", "prompt": "instruction", "response": "output"},
-    }
-}, indent=2) + "\n", encoding="utf-8")
-PY
-```
-
-Then launch SFT with `DATASET_DIR=data/fixed_teacher/deepscaler_qwen3_32b` and
-`DATASET_NAME=fixed_teacher`.
-
-**SCAS-selected distillation.** To use the paper's student-centric selection
-pipeline, pass one source-dataset directory as the candidate directory:
-
-```bash
-python -m scas.scoring.model_candidates \
-  --student-model /path/to/student-checkpoint \
-  --candidate-dir data/scas_top9_common_correct/data/deepscaler \
-  --output-dir outputs/scored/deepscaler \
-  --lambda-scas 0.5
-
-python -m scas.selection.group_by_score \
-  --input-dir outputs/scored/deepscaler \
-  --output-dir outputs/grouped/deepscaler \
-  --score-key scas_score \
-  --num-groups 5 \
-  --selected-group 1
-```
-
-The selected training file can then be used with `scripts/train_sft.sh` as
-described below.
+See [docs/verified_teacher_answer_pool.md](docs/verified_teacher_answer_pool.md)
+for the full data description and
+[examples/verified_teacher_pool](examples/verified_teacher_pool/) for runnable
+fixed-teacher and SCAS-selection training workflows.
 
 ## SCAS Workflow
 
